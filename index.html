@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bear's Hankel Race</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Simple fallback for icons if needed */
+        .icon-fallback { font-style: normal; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-content">
+                <h1 id="adventure-title">Bear's Hankel Race</h1>
+                <div id="champion-display" class="champion-display hidden">
+                    <span class="champion-icon">👑</span>
+                    <span class="champion-label">Current Leader:</span>
+                    <span id="champion-name">Red Team</span>
+                </div>
+            </div>
+            <button id="settings-toggle" class="icon-btn" title="Settings">
+                ⚙️
+            </button>
+        </header>
+
+        <!-- Main Race View -->
+        <main id="race-view" class="race-view">
+            <div id="map-container" class="map-container">
+                <!-- Map Image -->
+                <img id="race-map-img" src="" alt="Race Map" class="race-map-img hidden">
+                
+                <!-- SVG Overlay for Path (Visual Aid) -->
+                <svg id="path-overlay" class="path-overlay"></svg>
+
+                <!-- Goal Posts Container -->
+                <div id="goals-container" class="goals-container"></div>
+
+                <!-- Cars Container -->
+                <div id="cars-container" class="cars-container">
+                    <!-- Cars will be injected here via JS -->
+                </div>
+            </div>
+            
+            <div class="leaderboard-panel">
+                <h2>Leaderboard</h2>
+                <div id="leaderboard-list" class="leaderboard-list">
+                    <!-- Leaderboard items injected here -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button id="close-settings" class="icon-btn">✕</button>
+                </div>
+                
+                <div class="settings-tabs">
+                    <button class="tab-btn active" data-tab="teams">Teams</button>
+                    <button class="tab-btn" data-tab="maps">Maps & Path</button>
+                    <button class="tab-btn" data-tab="config">Configuration</button>
+                </div>
+
+                <div class="tab-content">
+                    <!-- Teams Tab -->
+                    <div id="tab-teams" class="tab-pane active">
+                        <div class="teams-grid" id="teams-settings-grid">
+                            <!-- Team inputs injected here -->
+                        </div>
+                    </div>
+
+                    <!-- Maps Tab -->
+                    <div id="tab-maps" class="tab-pane">
+                        <div class="map-upload-section">
+                            <label class="btn-primary">
+                                Upload New Map
+                                <input type="file" id="map-upload-input" accept="image/*" hidden>
+                            </label>
+                            <span id="map-file-name">No file chosen</span>
+                        </div>
+                        
+                        <div class="map-editor-container">
+                            <p class="instruction-text">Click on the map to add path points. Double click last point to finish.</p>
+                            <div class="editor-canvas-wrapper">
+                                <canvas id="map-editor-canvas"></canvas>
+                            </div>
+                            <div class="editor-controls">
+                                <button id="clear-path-btn" class="btn-secondary">Clear Path</button>
+                                <button id="save-map-btn" class="btn-primary">Save Map & Path</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Config Tab -->
+                    <div id="tab-config" class="tab-pane">
+                        <div class="form-group">
+                            <label>Google Sheets CSV URL</label>
+                            <input type="text" id="sheet-url-input" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
+                            <small>File > Share > Publish to web > Select Sheet > CSV</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Points per Stretch (Goal Interval)</label>
+                            <input type="number" id="points-stretch-input" value="10000">
+                        </div>
+                        <div class="form-group">
+                            <label>Total Goals</label>
+                            <input type="number" id="total-goals-input" value="10">
+                        </div>
+                        <div class="form-actions">
+                            <button id="save-config-btn" class="btn-primary">Save Configuration</button>
+                            <button id="reset-app-btn" class="btn-danger">Reset All Data</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
