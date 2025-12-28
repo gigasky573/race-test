@@ -1,33 +1,25 @@
-/**
- * Race Score Tracker - Main Logic
- */
-
-// --- Default Configuration ---
 const DEFAULT_STATE = {
     teams: [
-        { id: 'red', name: 'Churchill', color: '#ef4444', icon: '', points: 0 },
-        { id: 'yellow', name: 'Nightingale', color: '#eab308', icon: '', points: 0 },
-        { id: 'teal', name: 'Powell', color: '#14b8a6', icon: '', points: 0 },
-        { id: 'green', name: 'Green Team', color: '#22c55e', icon: '', points: 0 }
+        { id: '1', name: '', color: '', icon: '', points: 0 }
     ],
     map: {
-        image: '', // No default external image
-        path: [] // Array of {x, y} coordinates (percentages)
+        image: '',
+        path: []
     },
     config: {
-        sheetUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTYaXnchz48kW8wKWpXbZo1-dICZcBLYhrp-riwooQKyLvBtMwrQiQBRNZnSHzC1bbI1cId6krZEvt6/pub?gid=0&single=true&output=csv',
-        pointsPerStretch: 10000,
+        url: 'http://localhost:8000/api/scores',
+        pointsPerStretch: 50,
         totalGoals: 10,
-        adventureName: "Bear's Hankel House Race"
+        adventureName: "test"
     }
 };
 
-const APP_VERSION = '1.2'; // Increment to force reset
+const APP_VERSION = '0.1'; // Increment to force reset
 
 // --- State Management ---
 let appState = JSON.parse(localStorage.getItem('raceTrackerState'));
 
-// Check version or if state is missing
+
 if (!appState || appState.version !== APP_VERSION) {
     console.log('Resetting state to default (New Version)');
     appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
@@ -35,23 +27,6 @@ if (!appState || appState.version !== APP_VERSION) {
     saveState();
 }
 
-// Migration: Force update name if it matches the old default
-if (appState.config.adventureName === 'Grand Prix 2025') {
-    appState.config.adventureName = "Bear's Hankel House Race";
-    saveState();
-}
-
-// Migration 2: Auto-set Sheet URL and update Team Names if they are default
-if (!appState.config.sheetUrl) {
-    appState.config.sheetUrl = DEFAULT_STATE.config.sheetUrl;
-    // Map defaults only if they haven't been customized heavily (checking "Red Team" etc)
-    if (appState.teams[0].name === 'Red Team') appState.teams[0].name = 'Churchill';
-    if (appState.teams[1].name === 'Yellow Team') appState.teams[1].name = 'Nightingale';
-    if (appState.teams[2].name === 'Teal Team') appState.teams[2].name = 'Powell';
-    // Green Team matches already, but let's ensure consistency
-    if (appState.teams[3].name === 'Green Team') appState.teams[3].name = 'Green Team'; 
-    saveState();
-}
 
 function saveState() {
     try {
@@ -95,7 +70,6 @@ const els = {
     mapContainer: document.getElementById('map-container'),
     raceMapImg: document.getElementById('race-map-img'),
     carsContainer: document.getElementById('cars-container'),
-    leaderboardList: document.getElementById('leaderboard-list'),
     championDisplay: document.getElementById('champion-display'),
     championName: document.getElementById('champion-name'),
     adventureTitle: document.getElementById('adventure-title'),
@@ -110,7 +84,8 @@ const els = {
     saveMapBtn: document.getElementById('save-map-btn'),
 
     // Config Inputs
-    sheetUrlInput: document.getElementById('sheet-url-input'),
+    adventureNameInput: document.getElementById('adventure-name-input'),
+    urlInput: document.getElementById('sheet-url-input'),
     pointsStretchInput: document.getElementById('points-stretch-input'),
     totalGoalsInput: document.getElementById('total-goals-input'),
     saveConfigBtn: document.getElementById('save-config-btn'),
@@ -124,8 +99,7 @@ function init() {
 
     // Load Map Image
     if (appState.map.image) {
-        els.raceMapImg.src = appState.map.image;
-        els.raceMapImg.classList.remove('hidden');
+        setMapImage(appState.map.image);
     }
 
     // Start Polling Loop
@@ -133,6 +107,17 @@ function init() {
     fetchScores(); // Initial fetch
 
     render();
+    window.addEventListener('resize', updateOverlayBounds);
+}
+
+function setMapImage(src) {
+    if (!els.raceMapImg) return;
+    els.raceMapImg.onload = () => {
+        updateOverlayBounds();
+        renderMainPath();
+    };
+    els.raceMapImg.src = src;
+    els.raceMapImg.classList.remove('hidden');
 }
 
 function setupEventListeners() {
@@ -165,7 +150,8 @@ function setupEventListeners() {
 
     // Config Actions
     els.saveConfigBtn.addEventListener('click', () => {
-        appState.config.sheetUrl = els.sheetUrlInput.value;
+        appState.config.adventureName = els.adventureNameInput.value.trim() || DEFAULT_STATE.config.adventureName;
+        appState.config.url = els.urlInput.value;
         appState.config.pointsPerStretch = parseInt(els.pointsStretchInput.value) || 10000;
         appState.config.totalGoals = parseInt(els.totalGoalsInput.value) || 10;
         saveState();
@@ -180,40 +166,55 @@ function setupEventListeners() {
 
 // --- Core Logic: Data Fetching ---
 async function fetchScores() {
-    if (!appState.config.sheetUrl) return;
+    if (!appState.config.url) return;
 
     try {
-        const response = await fetch(appState.config.sheetUrl);
-        const csvText = await response.text();
-        parseCSV(csvText);
+        const response = await fetch(appState.config.url);
+        const data = await response.json();
+        console.log('API data:', data);
+        applyApiData(data);
     } catch (error) {
         console.error("Error fetching scores:", error);
     }
 }
 
-function parseCSV(csvText) {
-    // Simple CSV parser assuming "Team Name, Score" format or specific columns
-    // For this demo, we'll look for rows that match our team IDs or Names
-    const rows = csvText.split('\n').map(row => row.split(','));
+function applyApiData(data) {
+    const teamsData = extractTeamsFromApi(data);
+    console.log('Parsed teams:', teamsData);
+    if (!teamsData.length) return;
 
-    let updated = false;
-    appState.teams.forEach(team => {
-        // Try to find a row where the first column contains the team name (case insensitive)
-        const row = rows.find(r => r[0] && r[0].toLowerCase().includes(team.name.toLowerCase()));
-        if (row && row[1]) {
-            const score = parseInt(row[1].replace(/[^0-9]/g, '')); // Remove non-numeric
-            if (!isNaN(score) && score !== team.points) {
-                team.points = score;
-                updated = true;
-            }
-        }
+    const existingById = new Map(appState.teams.map(team => [String(team.id), team]));
+    const mergedTeams = teamsData.map(team => {
+        const existing = existingById.get(team.id);
+        return {
+            ...team,
+            // Keep icons from local storage by team id; API doesn't supply icon
+            icon: existing && existing.icon ? existing.icon : ''
+        };
     });
 
-    if (updated) {
-        saveState();
-    }
+    appState.teams = mergedTeams;
+    saveState();
 }
 
+function extractTeamsFromApi(data) {
+    if (!data) return [];
+
+    const rawTeams = Array.isArray(data) ? data : data.teams;
+    console.log('Raw teams:', rawTeams);
+    if (!Array.isArray(rawTeams)) return [];
+
+    return rawTeams.map((team, index) => {
+        const points = Number(team.points ?? team.score ?? 0);
+        return {
+            id: String(team.id ?? index + 1),
+            name: String(team.name ?? '').trim(),
+            color: String(team.color ?? '#ffffff'),
+            icon: '',
+            points: Number.isFinite(points) ? points : 0
+        };
+    });
+}
 // --- Core Logic: Rendering ---
 function render() {
     // Update Header
@@ -232,18 +233,6 @@ function render() {
         els.championDisplay.classList.add('hidden');
     }
 
-    // Render Leaderboard
-    els.leaderboardList.innerHTML = sortedTeams.map((team, index) => `
-        <div class="leaderboard-item rank-${index + 1}" style="border-left: 4px solid ${team.color}">
-            <div class="rank">#${index + 1}</div>
-            <img src="${team.icon}" class="team-logo-small" alt="${team.name}">
-            <div class="team-info">
-                <h4>${team.name}</h4>
-                <div class="team-score">${team.points.toLocaleString()} pts</div>
-            </div>
-        </div>
-    `).join('');
-
     // Render Cars on Map
     renderCars(sortedTeams);
     
@@ -255,20 +244,12 @@ function renderMainPath() {
     const svg = document.getElementById('path-overlay');
     if (!svg) return;
     
-    // Clear existing
     svg.innerHTML = '';
 
     if (!appState.map.path || appState.map.path.length < 2) return;
 
-    // Create Polyline
     const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
     
-    // Convert percentage points to string "x,y x,y"
-    // Note: SVG viewBox is not set, so we can use percentages if we set coordsSystem or just simple 0-100 if viewBox is 0 0 100 100
-    // To be safe/simple, let's assume SVG matches container size.
-    // We can use percentage values directly if we set the points as "x%,y%"? No, polyline points must be numbers.
-    // WE MUST USE VIEWBOX 0 0 100 100 on the SVG or just use 0-100 coordinates.
-    // Let's set the SVG viewBox to 0 0 100 100 so we can use the stored percentages directly.
     svg.setAttribute('viewBox', '0 0 100 100');
     svg.setAttribute('preserveAspectRatio', 'none'); 
     
@@ -276,11 +257,29 @@ function renderMainPath() {
     
     polyline.setAttribute('points', pointsStr);
     polyline.setAttribute('fill', 'none');
-    polyline.setAttribute('stroke', 'rgba(255, 255, 255, 0.6)'); // Semi-transparent white
+    polyline.setAttribute('stroke', 'rgba(255, 255, 255, 0.6)');
     polyline.setAttribute('stroke-width', '1');
-    polyline.setAttribute('stroke-dasharray', '2,1'); // Dashed line
+    polyline.setAttribute('stroke-dasharray', '2,1');
     
     svg.appendChild(polyline);
+    updateOverlayBounds();
+}
+
+function updateOverlayBounds() {
+    const svg = document.getElementById('path-overlay');
+    if (!svg || !els.mapContainer || !els.raceMapImg) return;
+
+    const containerRect = els.mapContainer.getBoundingClientRect();
+    const imgRect = els.raceMapImg.getBoundingClientRect();
+
+    const offsetLeft = imgRect.left - containerRect.left;
+    const offsetTop = imgRect.top - containerRect.top;
+
+    svg.style.position = 'absolute';
+    svg.style.left = `${offsetLeft}px`;
+    svg.style.top = `${offsetTop}px`;
+    svg.style.width = `${imgRect.width}px`;
+    svg.style.height = `${imgRect.height}px`;
 }
 
 function renderCars(teams) {
@@ -301,7 +300,13 @@ function renderCars(teams) {
         carEl.className = `car-marker ${index === 0 ? 'leader' : ''}`;
         carEl.style.left = `${pos.x}%`;
         carEl.style.top = `${pos.y}%`;
-        carEl.innerHTML = `<img src="${team.icon}" style="border: 2px solid ${team.color}; border-radius: 50%; background: #fff;">`;
+        carEl.innerHTML = `
+            <img src="${team.icon}" style="border: 2px solid ${team.color}; border-radius: 50%; background: #fff;">
+            <div class="car-label" style="border-color: ${team.color};">
+                <span class="car-label-name">${team.name}</span>
+                <span class="car-label-points">${team.points.toLocaleString()} pts</span>
+            </div>
+        `;
 
         els.carsContainer.appendChild(carEl);
     });
@@ -309,9 +314,6 @@ function renderCars(teams) {
 
 // --- Helper: Path Interpolation ---
 function getPointOnPath(progress, path) {
-    // Total length calculation could be complex. 
-    // Simplified: Assume path segments are roughly equal or just interpolate based on index.
-    // Better approach: Calculate total distance of path, then find segment.
 
     if (path.length < 2) return { x: 0, y: 0 };
 
@@ -426,8 +428,9 @@ function handleMapUpload(e) {
         compressImage(file, 1024, 0.7).then(compressedDataUrl => {
             appState.map.image = compressedDataUrl;
             document.getElementById('map-file-name').textContent = file.name;
-            saveState(); // SAVE THE STATE!
-            initMapEditor(); // Reload editor with new image
+            saveState();
+            setMapImage(compressedDataUrl);
+            initMapEditor();
         }).catch(err => {
             console.error("Compression failed", err);
             alert("Failed to process image. Please try another.");
@@ -470,7 +473,8 @@ function compressImage(file, maxWidth, quality) {
 
 function setupSettingsUI() {
     // Populate Config Inputs
-    els.sheetUrlInput.value = appState.config.sheetUrl;
+    els.adventureNameInput.value = appState.config.adventureName;
+    els.urlInput.value = appState.config.url;
     els.pointsStretchInput.value = appState.config.pointsPerStretch;
     els.totalGoalsInput.value = appState.config.totalGoals;
 
@@ -529,15 +533,11 @@ window.handleTeamIconUpload = (index, input) => {
                 appState.teams[index].icon = result;
                 saveState();
                 
-                // Update the text input directly to show the new value
-                // Find the sibling text input in the same group
                 const textInput = input.closest('.icon-input-group').querySelector('input[type="text"]');
                 if (textInput) {
                     textInput.value = result;
                 }
                 
-                // Do NOT call setupSettingsUI() here to avoid thrashing the DOM
-                // while the user is interacting with it.
             }
         };
         reader.readAsDataURL(file);

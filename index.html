@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bear's Hankel House Race</title>
+    <title>Hankel House Race</title>
     <link rel="stylesheet" href="styles.css">
     <style>
         /* Simple fallback for icons if needed */
@@ -16,8 +16,7 @@
         <header class="main-header">
             <div class="header-content">
                 <div class="logo-container">
-                    <span style="font-size: 2.5rem; margin-right: 10px;">🐻</span>
-                    <h1 id="adventure-title">Bear's Hankel House Race</h1>
+                    <h1 id="adventure-title">Hankel House Race</h1>
                 </div>
                 <div id="champion-display" class="champion-display hidden">
                     <span class="champion-icon">👑</span>
@@ -48,12 +47,6 @@
                 </div>
             </div>
             
-            <div class="leaderboard-panel">
-                <h2>Leaderboard</h2>
-                <div id="leaderboard-list" class="leaderboard-list">
-                    <!-- Leaderboard items injected here -->
-                </div>
-            </div>
         </main>
 
         <!-- Settings Modal -->
@@ -103,10 +96,15 @@
                     <!-- Config Tab -->
                     <div id="tab-config" class="tab-pane">
                         <div class="form-group">
-                            <label>Google Sheets CSV URL</label>
-                            <input type="text" id="sheet-url-input" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
-                            <small>File > Share > Publish to web > Select Sheet > CSV</small>
+                            <label>API URL</label>
+                            <input type="text" id="sheet-url-input" placeholder="http://localhost/api/scores">
+                            <small>Example: http://localhost/api/scores</small>
                         </div>
+                        <div class="form-group">
+                            <label>Adventure Name</label>
+                            <input type="text" id="adventure-name-input" placeholder="Hankel House Race">
+                        </div>
+                        
                         <div class="form-group">
                             <label>Points per Stretch (Goal Interval)</label>
                             <input type="number" id="points-stretch-input" value="10000">
